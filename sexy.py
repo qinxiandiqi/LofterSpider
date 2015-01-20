@@ -83,14 +83,11 @@ def scrapyImages(page=1):
 			groupSoup = BeautifulSoup(groupContent)
 			groupID = u"default"
 			descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
-			if descriptMeta is  None:
-				groupID = u"default"
-			else:
-				groupID = descriptMeta["content"].strip()
-				if len(groupID) == 0:
+			if descriptMeta is not None:
+				groupID = descriptMeta["content"].strip().split(' ')[0]
+				if len(groupID) == 0 or len(groupID) > 12:
+					print groupID + "-" + str(len(groupID))
 					groupID = u"default"
-				else:
-					groupID = groupID.split(" ")[0]
 			print groupID
 			targetDirPath = os.path.join(IMAGE_DIR_PATH, groupID)
 			if not os.path.isdir(targetDirPath):
