@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import urllib2,re,os,argparse,thread,time
 
 ALL_DOWNLOADS = 0
-START_PAGE = 0
+START_PAGE = 1
 END_PAGE = 65589
 BASE_DIR = u"images"
 IMAGE_DIR_PATH = ''
@@ -15,17 +15,22 @@ MAX_PAGE_ERROR_TIMES = 3
 CURRENT_PAGE_ERROR_TIMES = 0
 
 def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR
+	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES
 	parse = argparse.ArgumentParser()
-	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=0, default=0, help='The first page to scrapy, default is 0.')
+	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
 	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"images", default=u"images", help='The base dir to save image, default is images')
+	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
 	args = parse.parse_args()
 	START_PAGE = args.startpage
 	END_PAGE = args.endpage
 	BASE_DIR = args.basedir
-	print u"\n======================================================================="
-	print u"Save image to %s and Search from %s page to %s page..." % (BASE_DIR, START_PAGE, END_PAGE)	
+	MAX_PAGE_ERROR_TIMES = args.maxtimes
+	print u"\n======================================================================"
+	print u"Progress Setting:"
+	print u"1.Search from %s page to %s page." % (START_PAGE, END_PAGE)
+	print u"2.Save images to %s dir" % BASE_DIR
+	print u"3.Max type next page time is %s." % MAX_PAGE_ERROR_TIMES
 
 def initBasePath():
 	global BASE_DIR,IMAGE_DIR_PATH
@@ -36,11 +41,11 @@ def initBasePath():
 
 def inputHandle():
 	global KEEP_WORKING
-	print u"Now start scrapy prograss,you can type ENTER key to stop anytime..."
+	print u"Now start scrapy progress,you can type ENTER key to stop anytime..."
 	print u"=======================================================================\n"
 	raw_input()
 	KEEP_WORKING = False
-	print "Handle the working prograss, please wait...\n"
+	print "Handle the working progress, please wait...\n"
 	
 def scrapyImages(page=1):
 	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES
@@ -112,7 +117,7 @@ def scrapyImages(page=1):
 					continue
 				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
 				print "Save image success:" + imageSavePath
-		print u"This page has %s image groups. " % imageGroupCount
+		print u"Parse %s page  %s image groups. " % (page,imageGroupCount)
 		if imageGroupCount > 0 and KEEP_WORKING:
 			page = int(page) + 1
 			if int(page) > END_PAGE:
@@ -124,7 +129,7 @@ def scrapyImages(page=1):
 			KEEP_WORKING = False
 	else:
 		print u"======================================"
-		print u"Prograss Done!"
+		print u"Progress Done!"
 		print u"All download %s images" % ALL_DOWNLOADS
 		print u"======================================"
 
