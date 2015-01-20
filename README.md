@@ -23,7 +23,7 @@ easy_install和pip是Python的发行包管理工具，同样需要先安装才�
 步骤二 运行：<br>
 确保BeautifulSoup4安装完毕后就可以运行sexy.py文件。<br>
 1.不带参数运行：直接运行sexy.py，使用默认配置参数。<br>
-2.可用参数：<b>
+2.可用参数：<br>
 	-s 或 --startpage ：起始扫描页面，默认值为1，从第一页开始扫描<br>
 	-e 或 --endpage ：最后扫描页面，默认值为65589。<br>
 	-d 或 --dir ：相对当前文件，下载图片保存文件，默认为images文件夹<br>
