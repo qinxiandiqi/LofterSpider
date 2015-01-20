@@ -3,13 +3,14 @@
 
 from bs4 import BeautifulSoup
 
-import urllib2,re,os,argparse
+import urllib2,re,os,argparse,sys
 
 ALL_DOWNLOADS = 0
 START_PAGE = 0
 END_PAGE = 65589
 BASE_DIR = u"images"
 IMAGE_DIR_PATH = ''
+KEEP_WORKING = True
 
 def initArgs():
 	global START_PAGE,END_PAGE,BASE_DIR
@@ -26,64 +27,69 @@ def initArgs():
 def initBasePath():
 	global BASE_DIR,IMAGE_DIR_PATH
 	currentPath = os.getcwd()
-	IMAGE_PATH = os.path.join(currentPath, BASE_PATH)
+	IMAGE_DIR_PATH = os.path.join(currentPath, BASE_DIR)
 	if not os.path.isdir(IMAGE_DIR_PATH):
 		os.mkdir(IMAGE_DIR_PATH)
 
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_PATH,IMAGE_DIR_PATH
-	pageUrl = r"http://me2-sex.lofter.com/?page=%s" % page
-	print pageUrl
-	pageContent = urllib2.urlopen(pageUrl)
-	pageSoup = BeautifulSoup(pageContent)
-	imageGroup = pageSoup.find_all("a", class_="img", href=re.compile("post"))
-	imageGroupCount = 0
-	for groupItem in imageGroup:
-		groupUrl = groupItem.get("href")
-		print groupUrl
-		imageGroupCount = imageGroupCount + 1
-		groupContent = urllib2.urlopen(groupUrl)
-		groupSoup = BeautifulSoup(groupContent)
-		groupID = u"default"
-		descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
-		if descriptMeta is  None:
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING
+	KEEP_WORKING = True
+	while KEEP_WORKING:
+		pageUrl = r"http://me2-sex.lofter.com/?page=%s" % page
+		print pageUrl
+		pageContent = urllib2.urlopen(pageUrl)
+		pageSoup = BeautifulSoup(pageContent)
+		imageGroup = pageSoup.find_all("a", class_="img", href=re.compile("post"))
+		imageGroupCount = 0
+		for groupItem in imageGroup:
+			groupUrl = groupItem.get("href")
+			print groupUrl
+			imageGroupCount = imageGroupCount + 1
+			groupContent = urllib2.urlopen(groupUrl)
+			groupSoup = BeautifulSoup(groupContent)
 			groupID = u"default"
-		else:
-			groupID = descriptMeta["content"].strip()
-			if len(groupID) == 0:
+			descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
+			if descriptMeta is  None:
 				groupID = u"default"
 			else:
-				groupID = groupID.split(" ")[0]
-		print groupID
-		targetDirPath = os.path.join(IMAGE_DIR_PATH, groupID)
-		if not os.path.isdir(targetDirPath):
-			os.mkdir(targetDirPath)
-		images = groupSoup.find_all("div", class_="pic")
-		for imageItem in images:
-			imageUrl = imageItem.a.img.get("src")
-			imageContent = urllib2.urlopen(imageUrl).read()
-			imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1]
-			if os.path.exists(imageSavePath):
-				print "Image is exist:" + imageSavePath
-				continue
-			with open(imageSavePath, 'wb') as datas:
-				datas.write(imageContent)
-			ALL_DOWNLOADS = ALL_DOWNLOADS + 1
-			print imageUrl
-	print u"This page has %s image groups. " % imageGroupCount
-	if imageGroupCount > 0:
-		page = int(page) + 1
-		if int(page) > END_PAGE:
-			print u"Prograss Done!"
-			print u"All download %s images" % ALL_DOWNLOADS
+				groupID = descriptMeta["content"].strip()
+				if len(groupID) == 0:
+					groupID = u"default"
+				else:
+					groupID = groupID.split(" ")[0]
+			print groupID
+			targetDirPath = os.path.join(IMAGE_DIR_PATH, groupID)
+			if not os.path.isdir(targetDirPath):
+				os.mkdir(targetDirPath)
+			images = groupSoup.find_all("div", class_="pic")
+			for imageItem in images:
+				imageUrl = imageItem.a.img.get("src")
+				imageContent = urllib2.urlopen(imageUrl).read()
+				imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1]
+				if os.path.exists(imageSavePath):
+					print "Image is existed:" + imageSavePath
+					continue
+				with open(imageSavePath, 'wb') as datas:
+					datas.write(imageContent)
+				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
+				print imageUrl
+		print u"This page has %s image groups. " % imageGroupCount
+		if imageGroupCount > 0:
+			page = int(page) + 1
+			if int(page) > END_PAGE:
+				KEEP_WORKING = False
+			else:
+				print u"\nStart next page..."
 		else:
-			print u"\nStart next page..."
-			scrapyImages(page)
+			KEEP_WORKING = False
 	else:
 		print u"Prograss Done!"
 		print u"All download %s images" % ALL_DOWNLOADS
 
 initArgs()
-scrapyImages(START_PAGE)
+initBasePath()
+try:
+	scrapyImages(START_PAGE)
+except:
+	print u"Some except out, prograss is stop."
 
-raw_input("Press <Enter> To Quit!")
