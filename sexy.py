@@ -3,7 +3,7 @@
 
 from bs4 import BeautifulSoup
 
-import urllib2,re,os,argparse,sys
+import urllib2,re,os,argparse,thread,time
 
 ALL_DOWNLOADS = 0
 START_PAGE = 0
@@ -11,6 +11,8 @@ END_PAGE = 65589
 BASE_DIR = u"images"
 IMAGE_DIR_PATH = ''
 KEEP_WORKING = True
+MAX_PAGE_ERROR_TIMES = 3
+CURRENT_PAGE_ERROR_TIMES = 0
 
 def initArgs():
 	global START_PAGE,END_PAGE,BASE_DIR
@@ -22,6 +24,7 @@ def initArgs():
 	START_PAGE = args.startpage
 	END_PAGE = args.endpage
 	BASE_DIR = args.basedir
+	print u"\n======================================================================="
 	print u"Save image to %s and Search from %s page to %s page..." % (BASE_DIR, START_PAGE, END_PAGE)	
 
 def initBasePath():
@@ -31,21 +34,47 @@ def initBasePath():
 	if not os.path.isdir(IMAGE_DIR_PATH):
 		os.mkdir(IMAGE_DIR_PATH)
 
+def inputHandle():
+	global KEEP_WORKING
+	print u"Now start scrapy prograss,you can type ENTER key to stop anytime..."
+	print u"=======================================================================\n"
+	raw_input()
+	KEEP_WORKING = False
+	print "Handle the working prograss, please wait...\n"
+	
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES
 	KEEP_WORKING = True
+	thread.start_new(inputHandle,())
+	time.sleep(1)
 	while KEEP_WORKING:
 		pageUrl = r"http://me2-sex.lofter.com/?page=%s" % page
 		print pageUrl
-		pageContent = urllib2.urlopen(pageUrl)
+		try:
+			pageContent = urllib2.urlopen(pageUrl)
+			CURRENT_PAGE_ERROR_TIMES = 0
+		except:
+			CURRENT_PAGE_ERROR_TIMES = CURRENT_PAGE_ERROR_TIMES + 1
+			if CURRENT_PAGE_ERROR_TIMES >= MAX_PAGE_ERROR_TIMES:
+				print u"Get %s pages failed,please check your network or try later" % MAX_PAGE_ERROR_TIMES
+				break
+			else:
+				print u"Get %s page failed, try next page...\n" % page
+				continue
 		pageSoup = BeautifulSoup(pageContent)
 		imageGroup = pageSoup.find_all("a", class_="img", href=re.compile("post"))
 		imageGroupCount = 0
 		for groupItem in imageGroup:
+			if not KEEP_WORKING:
+				break
 			groupUrl = groupItem.get("href")
 			print groupUrl
 			imageGroupCount = imageGroupCount + 1
-			groupContent = urllib2.urlopen(groupUrl)
+			try:
+				groupContent = urllib2.urlopen(groupUrl)
+			except:
+				print u"Get this group images fail, try next gourp..."
+				continue
 			groupSoup = BeautifulSoup(groupContent)
 			groupID = u"default"
 			descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
@@ -63,33 +92,48 @@ def scrapyImages(page=1):
 				os.mkdir(targetDirPath)
 			images = groupSoup.find_all("div", class_="pic")
 			for imageItem in images:
+				if not KEEP_WORKING:
+					break
 				imageUrl = imageItem.a.img.get("src")
-				imageContent = urllib2.urlopen(imageUrl).read()
+				try:
+					imageContent = urllib2.urlopen(imageUrl).read()
+				except:
+					print "Get image fail:" + imageUrl
+					continue
 				imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1]
 				if os.path.exists(imageSavePath):
 					print "Image is existed:" + imageSavePath
 					continue
-				with open(imageSavePath, 'wb') as datas:
-					datas.write(imageContent)
+				try:
+					with open(imageSavePath, 'wb') as datas:
+						datas.write(imageContent)
+				except:
+					print "Save image fail:" + imageSavePath
+					continue
 				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
-				print imageUrl
+				print "Save image success:" + imageSavePath
 		print u"This page has %s image groups. " % imageGroupCount
-		if imageGroupCount > 0:
+		if imageGroupCount > 0 and KEEP_WORKING:
 			page = int(page) + 1
 			if int(page) > END_PAGE:
 				KEEP_WORKING = False
 			else:
-				print u"\nStart next page..."
+				print u"-------------------------------------------"
+				print u"Start next page..."
 		else:
 			KEEP_WORKING = False
 	else:
+		print u"======================================"
 		print u"Prograss Done!"
 		print u"All download %s images" % ALL_DOWNLOADS
+		print u"======================================"
 
 initArgs()
 initBasePath()
 try:
 	scrapyImages(START_PAGE)
+except KeyboardInterrupt:
+	print "Unnatural exit.\nIf you want to cancel the progress,please type ENTER key."
 except:
-	print u"Some except out, prograss is stop."
-
+	print "Unkown exception."
+	
