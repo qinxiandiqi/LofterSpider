@@ -31,3 +31,6 @@ easy_install和pip是Python的发行包管理工具，同样需要先安装才�
 例子：Sexy$ ./sexy.py -s 10 -e 12 -d cache -m 3 <br>
 	表示从第10页开始扫描到第12页，图片保存文件夹为cache，获取页面失败最多可以尝试3次。<br>
 3.运行期间可以随时按回车键退出程序。<br>
+
+测试环境：<br>
+	python 2.7 测试通过<br>
