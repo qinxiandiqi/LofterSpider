@@ -8,27 +8,24 @@ import urllib2,re,os,argparse,thread,time
 ALL_DOWNLOADS = 0
 START_PAGE = 1
 END_PAGE = 65589
-BASE_DIR = u"sexy_images"
+BASE_DIR = u"images"
 IMAGE_DIR_PATH = ''
 KEEP_WORKING = True
 MAX_PAGE_ERROR_TIMES = 3
 CURRENT_PAGE_ERROR_TIMES = 0
-ONLY_LATEST_IMAGES = False
+
+MAIN_DOMAIN = http://girl-atlas.com/
+
 
 def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES
+	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES
 	parse = argparse.ArgumentParser()
 	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
-	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"sexy_images", default=u"sexy_images", help='The base dir to save image, default is images')
+	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"images", default=u"images", help='The base dir to save image, default is images')
 	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
-	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
 	args = parse.parse_args()
-	ONLY_LATEST_IMAGES = args.getnew
-	if ONLY_LATEST_IMAGES:
-		START_PAGE = 1
-	else:
-		START_PAGE = args.startpage
+	START_PAGE = args.startpage
 	END_PAGE = args.endpage
 	BASE_DIR = args.basedir
 	MAX_PAGE_ERROR_TIMES = args.maxtimes
@@ -37,7 +34,6 @@ def initArgs():
 	print u"1.Search from %s page to %s page." % (START_PAGE, END_PAGE)
 	print u"2.Save images to %s dir" % BASE_DIR
 	print u"3.Max type next page time is %s." % MAX_PAGE_ERROR_TIMES
-	print u"4.Only get the latest images? %s" % ONLY_LATEST_IMAGES
 
 def initBasePath():
 	global BASE_DIR,IMAGE_DIR_PATH
@@ -55,7 +51,7 @@ def inputHandle():
 	print "Handle the working progress, please wait...\n"
 	
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES
 	KEEP_WORKING = True
 	thread.start_new(inputHandle,())
 	time.sleep(1)
@@ -90,11 +86,14 @@ def scrapyImages(page=1):
 			groupSoup = BeautifulSoup(groupContent)
 			groupID = u"default"
 			descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
-			if descriptMeta is not None:
-				groupID = descriptMeta["content"].strip().split(' ')[0]
-				if len(groupID) == 0 or len(groupID) > 12:
-					print groupID + "-" + str(len(groupID))
+			if descriptMeta is  None:
+				groupID = u"default"
+			else:
+				groupID = descriptMeta["content"].strip()
+				if len(groupID) == 0:
 					groupID = u"default"
+				else:
+					groupID = groupID.split(" ")[0]
 			print groupID
 			targetDirPath = os.path.join(IMAGE_DIR_PATH, groupID)
 			if not os.path.isdir(targetDirPath):
@@ -111,10 +110,6 @@ def scrapyImages(page=1):
 					continue
 				imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1]
 				if os.path.exists(imageSavePath):
-					if ONLY_LATEST_IMAGES:
-						print "Have got all latest images"
-						KEEP_WORKING = False
-						break
 					print "Image is existed:" + imageSavePath
 					continue
 				try:
