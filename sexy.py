@@ -20,7 +20,7 @@ def initArgs():
 	parse = argparse.ArgumentParser()
 	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
-	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"sexy_images", default=u"sexy_images", help='The base dir to save image, default is images')
+	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"sexy_images", default=u"sexy_images", help='The base dir to save image, default is sexy_images')
 	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
 	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
 	args = parse.parse_args()
