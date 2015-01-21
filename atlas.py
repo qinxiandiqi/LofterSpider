@@ -1,147 +1,204 @@
 #!/usr/bin/python
 # -*- coding:utf8 -*-
 
+import urllib2
+import re
+import os
+import argparse
+import thread
+import time
+import pickle
+
 from bs4 import BeautifulSoup
 
-import urllib2,re,os,argparse,thread,time
 
-ALL_DOWNLOADS = 0
-START_PAGE = 1
-END_PAGE = 65589
-BASE_DIR = u"images"
-IMAGE_DIR_PATH = ''
-KEEP_WORKING = True
-MAX_PAGE_ERROR_TIMES = 3
-CURRENT_PAGE_ERROR_TIMES = 0
+all_downloads = 0
+base_dir = u"atlas_images"
+setting_dir = u'setting'
+keep_working = True
+max_page_error_times = 3
+currrent_page_error_times = 0
 
-MAIN_DOMAIN = http://girl-atlas.com/
+main_domain = r'http://girl-atlas.com/'
+tag_domain = r'http://girl-atlas.com/t/'
+target_url = main_domain
 
+group_dice = {}
+girl_dice = {}
+group_dice_file = u'group_dice'
+girl_dice_file = u'girl_dice'
 
-def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES
+def init_args():
+	global base_dir, max_page_error_times
 	parse = argparse.ArgumentParser()
-	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
-	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
-	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"images", default=u"images", help='The base dir to save image, default is images')
-	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
+	parse.add_argument('-d', '--dir', dest='basedir', type=str,
+		nargs='?', const=u"images", default=u"atlas_images",
+		help='The base dir to save image, default is images')
+	parse.add_argument('-m', '--max', dest='maxtimes', type=int,
+		nargs='?', const=3, default=3,
+		help='The max times to try next page when the current page get fail, default is 3')
 	args = parse.parse_args()
-	START_PAGE = args.startpage
-	END_PAGE = args.endpage
-	BASE_DIR = args.basedir
-	MAX_PAGE_ERROR_TIMES = args.maxtimes
-	print u"\n======================================================================"
-	print u"Progress Setting:"
-	print u"1.Search from %s page to %s page." % (START_PAGE, END_PAGE)
-	print u"2.Save images to %s dir" % BASE_DIR
-	print u"3.Max type next page time is %s." % MAX_PAGE_ERROR_TIMES
+	base_dir = args.basedir
+	max_page_error_times = args.maxtimes
+	print(u"\n======================================================================")
+	print(u"Progress Setting:")
+	print(u"1.Save images to %s dir" % base_dir)
+	print(u"2.Max type next page time is %s." % max_page_error_times)
+	print(u"======================================================================\n")
 
-def initBasePath():
-	global BASE_DIR,IMAGE_DIR_PATH
+def init_dir_and_file():
+	global base_dir, setting_dir, group_dice_file, girl_dice_file
 	currentPath = os.getcwd()
-	IMAGE_DIR_PATH = os.path.join(currentPath, BASE_DIR)
-	if not os.path.isdir(IMAGE_DIR_PATH):
-		os.mkdir(IMAGE_DIR_PATH)
+	base_dir = os.path.join(currentPath, base_dir)
+	if not os.path.isdir(base_dir):
+		os.mkdir(base_dir)
+	setting_dir = os.path.join(currentPath, setting_dir)
+	if not os.path.isdir(setting_dir):
+		os.mkdir(setting_dir)
+	group_dice_file = setting_dir + "/" + group_dice_file
+	girl_dice_file = setting_dir + "/" + girl_dice_file
 
-def inputHandle():
-	global KEEP_WORKING
-	print u"Now start scrapy progress,you can type ENTER key to stop anytime..."
-	print u"=======================================================================\n"
+def init_dice():
+	global group_dice, girl_dice, group_dice_file, girl_dice_file
+	try:
+		with open(group_dice_file, 'r') as group_file:
+			group_dice = pickle.load(group_file)
+	except:
+		print(u"Get group dice cache file fail, using null dice.")
+		group_dice = {}
+	try:
+		with open(girl_dice_file, 'r') as girl_file:
+			girl_dice = pickle.load(girl_file)
+	except:
+		print(u"Get girl dice cache file fail, using null dice.")
+		girl_dice = {}	
+
+def save_dice():
+	global group_dice, girl_dice, group_dice_file, girl_dice_file
+	#try:
+	with open(group_dice_file, 'w') as group_file:
+		pickle.dump(group_dice, group_file)
+	#except:
+		#print(u"Sorry,save group dice fail.")
+	#try:
+	with open(girl_dice_file, 'w') as girl_file:
+		pickle.dump(girl_dice, girl_file)
+	#except:
+		#print(u"Sorry,save girl dice fial.")
+
+def input_handle():
+	global keep_working
+	print(u"Now start scrapy progress,you can type ENTER key to stop anytime...\n")
 	raw_input()
-	KEEP_WORKING = False
-	print "Handle the working progress, please wait...\n"
+	keep_working = False
+	print(u"Handle the working progress, please wait...\n")
 	
-def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,IMAGE_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES
-	KEEP_WORKING = True
-	thread.start_new(inputHandle,())
+def scrapy_images():
+	global all_downloads, base_dir, keep_working, max_page_error_times, current_page_error_times, group_dice, girl_dice, target_url
+	keep_working = True 
+	#thread.start_new(input_handle,())
 	time.sleep(1)
-	while KEEP_WORKING:
-		pageUrl = r"http://me2-sex.lofter.com/?page=%s" % page
-		print pageUrl
+	page_url = target_url
+	while keep_working:
+		print(page_url)
 		try:
-			pageContent = urllib2.urlopen(pageUrl)
-			CURRENT_PAGE_ERROR_TIMES = 0
+			page_content = urllib2.urlopen(page_url)
+			current_page_error_times = 0
 		except:
-			CURRENT_PAGE_ERROR_TIMES = CURRENT_PAGE_ERROR_TIMES + 1
-			if CURRENT_PAGE_ERROR_TIMES >= MAX_PAGE_ERROR_TIMES:
-				print u"Get %s pages failed,please check your network or try later" % MAX_PAGE_ERROR_TIMES
+			current_page_error_times = current_page_error_times + 1
+			if current_page_error_times >= max_page_error_times:
+				print(u"Get page failed %s times,please check your network and try later" % max_page_error_times)
 				break
 			else:
-				print u"Get %s page failed, try next page...\n" % page
+				print(u"Get page failed, try again...\n")
 				continue
-		pageSoup = BeautifulSoup(pageContent)
-		imageGroup = pageSoup.find_all("a", class_="img", href=re.compile("post"))
-		imageGroupCount = 0
-		for groupItem in imageGroup:
-			if not KEEP_WORKING:
+		page_soup = BeautifulSoup(page_content)
+		image_group = page_soup.find_all("div", class_="grid_title")
+		image_group_count = 0
+		for group_item in image_group:
+			if not keep_working:
 				break
-			groupUrl = groupItem.get("href")
-			print groupUrl
-			imageGroupCount = imageGroupCount + 1
+			group_url = group_item.a.get("href")
+			print(group_url)
+			image_group_count = image_group_count + 1
 			try:
-				groupContent = urllib2.urlopen(groupUrl)
+				group_content = urllib2.urlopen(group_url)
 			except:
-				print u"Get this group images fail, try next gourp..."
+				print(u"Get this group images fail, try next gourp...")
 				continue
-			groupSoup = BeautifulSoup(groupContent)
-			groupID = u"default"
-			descriptMeta = groupSoup.find("meta", attrs={"name": "Description"})
-			if descriptMeta is  None:
-				groupID = u"default"
-			else:
-				groupID = descriptMeta["content"].strip()
-				if len(groupID) == 0:
-					groupID = u"default"
-				else:
-					groupID = groupID.split(" ")[0]
-			print groupID
-			targetDirPath = os.path.join(IMAGE_DIR_PATH, groupID)
-			if not os.path.isdir(targetDirPath):
-				os.mkdir(targetDirPath)
-			images = groupSoup.find_all("div", class_="pic")
-			for imageItem in images:
-				if not KEEP_WORKING:
+			group_soup = BeautifulSoup(group_content)
+			atlas_id = u"default"
+			tags = group_soup.find("div", class_="album_tags").find_all('a')
+			for i in range(len(tags)):
+				tag_name = tags[i].string
+				if tag_name is None:
+					tag_name = u"default"
+					atlas_id = tag_name
+					print tags[i]
+					continue
+				if girl_dice.has_key(tag_name):
+					atlas_id = tag_name
 					break
-				imageUrl = imageItem.a.img.get("src")
+				elif group_dice.has_key(tag_name):
+					if i == 0:
+						atlas_id = tag_name
+				else:
+					tag_code = tags[i].get('href').split('/')[-1]
+					your_choose = raw_input((tag_name + " is a girl's name?(y/n):").encode('utf-8'))
+					if your_choose.strip().lower() == 'y':
+						girl_dice.setdefault(tag_name, tag_code)
+						atlas_id = tag_name
+						break
+					else:
+						group_dice.setdefault(tag_name, tag_code)
+						if i == 0:
+							atlas_id = tag_name
+			print(atlas_id)
+			
+			target_dir_path = os.path.join(base_dir, atlas_id)
+			if not os.path.isdir(target_dir_path):
+				os.mkdir(target_dir_path)
+			images = group_soup.find_all("li", class_="slide")
+			for image_item in images:
+				if not keep_working:
+					break
+				image_url = image_item.img.get("src")
+				if image_url is None:
+					image_url = image_item.img.get("delay")
 				try:
-					imageContent = urllib2.urlopen(imageUrl).read()
+					image_content = urllib2.urlopen(image_url).read()
 				except:
-					print "Get image fail:" + imageUrl
+					print "Get image fail:" + image_url
 					continue
-				imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1]
-				if os.path.exists(imageSavePath):
-					print "Image is existed:" + imageSavePath
+				image_save_path = target_dir_path + "/" + image_url.split("/")[-1].split("!")[0]
+				if os.path.exists(image_save_path):
+					print "Image is existed:" + image_save_path
 					continue
 				try:
-					with open(imageSavePath, 'wb') as datas:
-						datas.write(imageContent)
+					with open(image_save_path, 'wb') as datas:
+						datas.write(image_content)
 				except:
-					print "Save image fail:" + imageSavePath
+					print "Save image fail:" + image_save_path
 					continue
-				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
-				print "Save image success:" + imageSavePath
-		print u"Parse %s page  %s image groups. " % (page,imageGroupCount)
-		if imageGroupCount > 0 and KEEP_WORKING:
-			page = int(page) + 1
-			if int(page) > END_PAGE:
-				KEEP_WORKING = False
-			else:
-				print u"-------------------------------------------"
-				print u"Start next page..."
-		else:
-			KEEP_WORKING = False
+				all_downloads = all_downloads + 1
+				print "Save image success:" + image_save_path
+		print u"Parse this page  %s image groups. " % image_group_count
+		keep_working = False
 	else:
 		print u"======================================"
 		print u"Progress Done!"
 		print u"All download %s images" % ALL_DOWNLOADS
 		print u"======================================"
 
-initArgs()
-initBasePath()
-try:
-	scrapyImages(START_PAGE)
-except KeyboardInterrupt:
-	print "Unnatural exit.\nIf you want to cancel the progress,please type ENTER key."
-except:
-	print "Unkown exception."
+init_args()
+init_dir_and_file()
+#try:
+scrapy_images()
+save_dice()
+#except KeyboardInterrupt:
+#	print "Unnatural exit.\nIf you want to cancel the progress,please type ENTER key."
+#	save_dice()
+#except:
+#	print "Unkown exception."
+#	save_dice()
 	
