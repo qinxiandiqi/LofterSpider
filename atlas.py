@@ -8,6 +8,7 @@ import argparse
 import thread
 import time
 import pickle
+import signal
 
 from bs4 import BeautifulSoup
 
@@ -21,7 +22,9 @@ currrent_page_error_times = 0
 
 main_domain = r'http://girl-atlas.com/'
 tag_domain = r'http://girl-atlas.com/t/'
-target_url = main_domain
+target_url = main_domain + r"index.action?id=2&last="
+
+header = r'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'
 
 group_dice = {}
 girl_dice = {}
@@ -63,28 +66,25 @@ def init_dice():
 	try:
 		with open(group_dice_file, 'r') as group_file:
 			group_dice = pickle.load(group_file)
+		print(group_dice)
 	except:
 		print(u"Get group dice cache file fail, using null dice.")
 		group_dice = {}
 	try:
 		with open(girl_dice_file, 'r') as girl_file:
 			girl_dice = pickle.load(girl_file)
+		print(girl_dice)
 	except:
 		print(u"Get girl dice cache file fail, using null dice.")
 		girl_dice = {}	
 
 def save_dice():
 	global group_dice, girl_dice, group_dice_file, girl_dice_file
-	#try:
 	with open(group_dice_file, 'w') as group_file:
 		pickle.dump(group_dice, group_file)
-	#except:
-		#print(u"Sorry,save group dice fail.")
-	#try:
 	with open(girl_dice_file, 'w') as girl_file:
 		pickle.dump(girl_dice, girl_file)
-	#except:
-		#print(u"Sorry,save girl dice fial.")
+	print(u"save dice done")
 
 def input_handle():
 	global keep_working
@@ -92,12 +92,19 @@ def input_handle():
 	raw_input()
 	keep_working = False
 	print(u"Handle the working progress, please wait...\n")
+
+def sigint_handler(signum, frame):
+	global keep_working
+	keep_working = False
+	print(u"catch sigint")
+	save_dice()
 	
 def scrapy_images():
-	global all_downloads, base_dir, keep_working, max_page_error_times, current_page_error_times, group_dice, girl_dice, target_url
+	global all_downloads, base_dir, keep_working, max_page_error_times, current_page_error_times, group_dice, girl_dice, target_url, header
 	keep_working = True 
 	#thread.start_new(input_handle,())
-	time.sleep(1)
+	#time.sleep(1)
+	signal.signal(signal.SIGINT, sigint_handler)
 	page_url = target_url
 	while keep_working:
 		print(page_url)
@@ -132,8 +139,6 @@ def scrapy_images():
 			for i in range(len(tags)):
 				tag_name = tags[i].string
 				if tag_name is None:
-					tag_name = u"default"
-					atlas_id = tag_name
 					print tags[i]
 					continue
 				if girl_dice.has_key(tag_name):
@@ -166,39 +171,46 @@ def scrapy_images():
 				if image_url is None:
 					image_url = image_item.img.get("delay")
 				try:
-					image_content = urllib2.urlopen(image_url).read()
+					req = urllib2.Request(image_url)
+					req.add_header('User-Agent', header)
+					image_content = urllib2.urlopen(req).read()
 				except:
-					print "Get image fail:" + image_url
+					print(u"get image fail:" + image_url)
 					continue
 				image_save_path = target_dir_path + "/" + image_url.split("/")[-1].split("!")[0]
 				if os.path.exists(image_save_path):
-					print "Image is existed:" + image_save_path
+					print(u"Image is existed:" + image_save_path)
 					continue
 				try:
 					with open(image_save_path, 'wb') as datas:
 						datas.write(image_content)
 				except:
-					print "Save image fail:" + image_save_path
+					print(u"Save image fail:" + image_save_path)
 					continue
 				all_downloads = all_downloads + 1
-				print "Save image success:" + image_save_path
+				print(u"Save image success:" + image_save_path)
 		print u"Parse this page  %s image groups. " % image_group_count
-		keep_working = False
+		last_group_id = image_group[-1].a.get('href').split('/')[-1]
+		if (not keep_working) or (last_group_id is None):
+			keep_working = False
+		else:
+			page_url = target_url + last_group_id
+			keep_working = True
 	else:
-		print u"======================================"
-		print u"Progress Done!"
-		print u"All download %s images" % ALL_DOWNLOADS
-		print u"======================================"
+		print(u"======================================")
+		print(u"Progress Done!")
+		print(u"All download %s images" % all_downloads)
+		print(u"======================================")
 
 init_args()
 init_dir_and_file()
-#try:
-scrapy_images()
-save_dice()
-#except KeyboardInterrupt:
-#	print "Unnatural exit.\nIf you want to cancel the progress,please type ENTER key."
-#	save_dice()
-#except:
-#	print "Unkown exception."
-#	save_dice()
-	
+init_dice()
+try:
+	scrapy_images()
+	save_dice()
+except KeyboardInterrupt:
+	print(u"Unnatural exit.")
+	save_dice()
+except:
+	print "Unkown exception."
+	save_dice
