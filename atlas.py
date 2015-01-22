@@ -267,7 +267,7 @@ def scrapy_images():
 						if i == 0:
 							atlas_id = tag_name
 			print(atlas_id)
-			continue	
+			#continue	
 			target_dir_path = os.path.join(base_dir, atlas_id)
 			if not os.path.isdir(target_dir_path):
 				os.mkdir(target_dir_path)
