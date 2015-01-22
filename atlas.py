@@ -141,7 +141,7 @@ def search_tag_id_by_name(name):
 		return girl_dice.get(name, None)
 	else:
 		try:
-			search_content = urllib2.urlopen(search_tag_url + name)
+			search_content = urllib2.urlopen(search_tag_url + name, timeout=60)
 		except:
 			return None
 		search_soup = BeautifulSoup(search_content)
@@ -216,7 +216,7 @@ def scrapy_images():
 	while keep_working:
 		print(page_url)
 		try:
-			page_content = urllib2.urlopen(page_url)
+			page_content = urllib2.urlopen(page_url, timeout=60)
 			current_page_error_times = 0
 		except:
 			current_page_error_times = current_page_error_times + 1
@@ -236,7 +236,7 @@ def scrapy_images():
 			print(group_url)
 			image_group_count = image_group_count + 1
 			try:
-				group_content = urllib2.urlopen(group_url)
+				group_content = urllib2.urlopen(group_url, timeout=60)
 			except:
 				print(u"Get this group images fail, try next gourp...")
 				continue
@@ -279,9 +279,9 @@ def scrapy_images():
 				if image_url is None:
 					image_url = image_item.img.get("delay")
 				try:
-					req = urllib2.Request(image_url)
-					req.add_header('User-Agent', header)
-					image_content = urllib2.urlopen(req).read()
+					#req = urllib2.Request(image_url)
+					#req.add_header('User-Agent', header)
+					image_content = urllib2.urlopen(image_url, timeout=60).read()
 				except:
 					print(u"get image fail:" + image_url)
 					continue
