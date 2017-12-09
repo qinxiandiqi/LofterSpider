@@ -3,7 +3,7 @@
 
 from bs4 import BeautifulSoup
 
-import urllib2,re,os,argparse,thread,time,hashlib
+import urllib2,re,os,argparse,thread,time,hashlib,traceback
 
 ALL_DOWNLOADS = 0
 START_PAGE = 1
@@ -99,22 +99,23 @@ def scrapyImages(page=1):
 			imageGroupCount = imageGroupCount + 1
 			try:
 				groupContent = urllib2.urlopen(groupUrl, timeout=TIME_OUT)
-			except:
+				groupSoup = BeautifulSoup(groupContent)
+				groupID = u"default"
+				if IS_GROUP_BY_DATE:
+					dateTag = groupSoup.find("a", class_="date")
+					if dateTag is not None:
+						groupID = dateTag.string
+						if groupID is None:
+							groupID = u"default"
+							print u"Get publish date for groupID fail, set to default"
+						if len(groupID) == 0 or len(groupID) > 12:
+							print groupID + "-" + str(len(groupID))
+							groupID = u"default"
+				print u"GroupID is " + groupID
+			except Exception, e:
 				print u"Get this group images fail, try next gourp..."
+				print traceback.format_exc()
 				continue
-			groupSoup = BeautifulSoup(groupContent)
-			groupID = u"default"
-			if IS_GROUP_BY_DATE:
-				dateTag = groupSoup.find("a", class_="date")
-				if dateTag is not None:
-					groupID = dateTag.string
-					if groupID is None:
-						groupID = u"default"
-						print u"Get publish date for groupID fail, set to default"
-					if len(groupID) == 0 or len(groupID) > 12:
-						print groupID + "-" + str(len(groupID))
-						groupID = u"default"
-			print u"GroupID is " + groupID
 			targetDirPath = os.path.join(DOMAIN_DIR_PATH, groupID)
 			if not os.path.isdir(targetDirPath):
 				os.mkdir(targetDirPath)
