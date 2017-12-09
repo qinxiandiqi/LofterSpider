@@ -2,7 +2,7 @@
 
 ## Lofter爬虫
 
-本项目可以爬去Lofter图片，依赖Python的BeautifulSoup4第三方库，使用本项目需要先安装BeautifulSoup4。
+本项目可以爬取Lofter图片，依赖Python的BeautifulSoup4第三方库，使用本项目需要先安装BeautifulSoup4。
 
 ### 安装依赖库：  
 安装BeautifulSoup4：  
@@ -51,7 +51,7 @@ LofterSpider$ ./lofter.py -s 10 -e 12 -d cache -m 3
 ```
 3. 运行期间可以随时按回车键退出程序。  
 
-### ~~运行atlas.py文件爬取网站二：~~  **已失效**  
+### ~~运行atlas.py文件爬取网站二：~~ **已失效**  
 1. 不带参数运行：直接运行atlas.py，使用默认配置参数，从主页开始爬取。  
 2. 可用参数：  
 * -d 或 --dir ：相对当前文件，下载图片保存位置，默认为atlas_images文件夹  

@@ -17,9 +17,10 @@ CURRENT_PAGE_ERROR_TIMES = 0
 ONLY_LATEST_IMAGES = False
 DOMAIN = u"mybluecat"
 IS_GROUP_BY_DATE = True
+TIME_OUT = 60
 
 def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_DATE
+	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_DATE,TIME_OUT
 	parse = argparse.ArgumentParser()
 	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
@@ -28,6 +29,7 @@ def initArgs():
 	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
 	parse.add_argument('--domain', dest='domain', type=str, nargs='?', const=u"mybluecat", default=u"mybluecat", help='The secondary domain of target lofter page, default is mybluecat')
 	parse.add_argument('--groupByDate', dest='groupByDate', action='store_false', default=True, help='Group image with its publish date, default is true')
+	parse.add_argument('-t', '--timeout', dest='timeout', type=int, nargs='?', const=60, default=60, help='The timeout of a http connection, default is 60')
 	args = parse.parse_args()
 	ONLY_LATEST_IMAGES = args.getnew
 	if ONLY_LATEST_IMAGES:
@@ -39,6 +41,7 @@ def initArgs():
 	MAX_PAGE_ERROR_TIMES = args.maxtimes
 	DOMAIN = args.domain
 	IS_GROUP_BY_DATE = args.groupByDate
+	TIME_OUT = args.timeout
 	print u"\n======================================================================"
 	print u"Progress Setting:"
 	print u"1.Search from %s page to %s page." % (START_PAGE, END_PAGE)
@@ -67,7 +70,7 @@ def inputHandle():
 	print "Handle the working progress, please wait...\n"
 	
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_DATE
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_DATE,TIME_OUT
 	KEEP_WORKING = True
 	thread.start_new(inputHandle,())
 	time.sleep(1)
@@ -75,7 +78,7 @@ def scrapyImages(page=1):
 		pageUrl = r"http://%s.lofter.com/?page=%s" % (DOMAIN, page)
 		print pageUrl
 		try:
-			pageContent = urllib2.urlopen(pageUrl)
+			pageContent = urllib2.urlopen(pageUrl, timeout=TIME_OUT)
 			CURRENT_PAGE_ERROR_TIMES = 0
 		except:
 			CURRENT_PAGE_ERROR_TIMES = CURRENT_PAGE_ERROR_TIMES + 1
@@ -95,7 +98,7 @@ def scrapyImages(page=1):
 			print groupUrl
 			imageGroupCount = imageGroupCount + 1
 			try:
-				groupContent = urllib2.urlopen(groupUrl)
+				groupContent = urllib2.urlopen(groupUrl, timeout=TIME_OUT)
 			except:
 				print u"Get this group images fail, try next gourp..."
 				continue
@@ -121,7 +124,7 @@ def scrapyImages(page=1):
 					break
 				imageUrl = imageItem.a.img.get("src")
 				try:
-					imageContent = urllib2.urlopen(imageUrl).read()
+					imageContent = urllib2.urlopen(imageUrl, timeout=TIME_OUT).read()
 				except:
 					print "Get image fail:" + imageUrl
 					continue
