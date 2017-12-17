@@ -15,12 +15,12 @@ KEEP_WORKING = True
 MAX_PAGE_ERROR_TIMES = 3
 CURRENT_PAGE_ERROR_TIMES = 0
 ONLY_LATEST_IMAGES = False
-DOMAIN = u"mybluecat"
-IS_GROUP_BY_DATE = True
+DOMAIN = u"weebang"
+IS_GROUP_BY_ID = False
 TIME_OUT = 60
 
 def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_DATE,TIME_OUT
+	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_ID,TIME_OUT
 	parse = argparse.ArgumentParser()
 	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
@@ -28,7 +28,7 @@ def initArgs():
 	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
 	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
 	parse.add_argument('--domain', dest='domain', type=str, nargs='?', const=u"mybluecat", default=u"mybluecat", help='The secondary domain of target lofter page, default is mybluecat')
-	parse.add_argument('--groupByDate', dest='groupByDate', action='store_false', default=True, help='Group image with its publish date, default is true')
+	parse.add_argument('--groupByID', dest='groupByID', action='store_true', default=False, help='Group image with its group ID, default is false')
 	parse.add_argument('-t', '--timeout', dest='timeout', type=int, nargs='?', const=60, default=60, help='The timeout of a http connection, default is 60')
 	args = parse.parse_args()
 	ONLY_LATEST_IMAGES = args.getnew
@@ -40,7 +40,7 @@ def initArgs():
 	BASE_DIR = args.basedir
 	MAX_PAGE_ERROR_TIMES = args.maxtimes
 	DOMAIN = args.domain
-	IS_GROUP_BY_DATE = args.groupByDate
+	IS_GROUP_BY_ID = args.groupByID
 	TIME_OUT = args.timeout
 	print u"\n======================================================================"
 	print u"Progress Setting:"
@@ -49,7 +49,7 @@ def initArgs():
 	print u"3.Max type next page time is %s." % MAX_PAGE_ERROR_TIMES
 	print u"4.Only get the latest images? %s" % ONLY_LATEST_IMAGES
 	print u"5.The target domain is %s" % DOMAIN
-	print u"6.Is group image by publish date? %s" % IS_GROUP_BY_DATE
+	print u"6.Is group image by group ID? %s" % IS_GROUP_BY_ID
 
 def initBasePath():
 	global BASE_DIR,IMAGE_DIR_PATH,DOMAIN_DIR_PATH
@@ -69,8 +69,11 @@ def inputHandle():
 	KEEP_WORKING = False
 	print "Handle the working progress, please wait...\n"
 	
+def isImageTag(tag):
+	return tag.has_attr('bigimgsrc') 
+
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_DATE,TIME_OUT
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_ID,TIME_OUT
 	KEEP_WORKING = True
 	thread.start_new(inputHandle,())
 	time.sleep(1)
@@ -88,29 +91,30 @@ def scrapyImages(page=1):
 			else:
 				print u"Get %s page failed, try next page...\n" % page
 				continue
-		pageSoup = BeautifulSoup(pageContent)
-		imageGroup = pageSoup.find_all("a", class_="img", href=re.compile("post"))
+		pageSoup = BeautifulSoup(pageContent, "html.parser")
+		imageGroup = pageSoup.find_all("a", href=re.compile(r"http://%s.lofter.com/post" % DOMAIN))
 		imageGroupCount = 0
+		postList = []
 		for groupItem in imageGroup:
 			if not KEEP_WORKING:
 				break
 			groupUrl = groupItem.get("href")
+			postList.append(groupUrl)
+		groupUrlSet = set(postList)
+		for groupUrl in groupUrlSet:
+			if not KEEP_WORKING:
+				break
 			print groupUrl
 			imageGroupCount = imageGroupCount + 1
 			try:
 				groupContent = urllib2.urlopen(groupUrl, timeout=TIME_OUT)
-				groupSoup = BeautifulSoup(groupContent)
+				groupSoup = BeautifulSoup(groupContent, "html.parser")
 				groupID = u"default"
-				if IS_GROUP_BY_DATE:
-					dateTag = groupSoup.find("a", class_="date")
-					if dateTag is not None:
-						groupID = dateTag.string
-						if groupID is None:
-							groupID = u"default"
-							print u"Get publish date for groupID fail, set to default"
-						if len(groupID) == 0 or len(groupID) > 12:
-							print groupID + "-" + str(len(groupID))
-							groupID = u"default"
+				if IS_GROUP_BY_ID:
+					groupID = groupUrl.split("/")[-1]
+					if groupID is None:
+						groupID = u"default"
+						print u"Get groupID fail, set to default"
 				print u"GroupID is " + groupID
 			except Exception, e:
 				print u"Get this group images fail, try next gourp..."
@@ -119,19 +123,27 @@ def scrapyImages(page=1):
 			targetDirPath = os.path.join(DOMAIN_DIR_PATH, groupID)
 			if not os.path.isdir(targetDirPath):
 				os.mkdir(targetDirPath)
-			images = groupSoup.find_all("div", class_="pic")
+			images = groupSoup.find_all(isImageTag)
+			imageUrlList = []
 			for imageItem in images:
 				if not KEEP_WORKING:
 					break
-				imageUrl = imageItem.a.img.get("src")
+				imageUrl = imageItem.get("bigimgsrc")
+				imageUrlList.append(imageUrl)
+			imageUrlSet = set(imageUrlList)
+			for imageUrl in imageUrlSet:
+				if not KEEP_WORKING:
+					break
 				try:
 					imageContent = urllib2.urlopen(imageUrl, timeout=TIME_OUT).read()
-				except:
+				except Exception, e:
 					print "Get image fail:" + imageUrl
+					print traceback.format_exc()
 					continue
 				try:
 					imageSavePath = targetDirPath + "/" + imageUrl.split("/")[-1].split("?")[0]
-				except:
+				except Exception, e:
+					print traceback.format_exc()
 					print u"Get image name fail, set a md5 name"
 					imageSavePath = targetDirPath + "/" + hashlib.md5(imageUrl).hexdigest()
 				if os.path.exists(imageSavePath):
