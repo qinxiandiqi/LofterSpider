@@ -27,7 +27,7 @@ def initArgs():
 	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"images", default=u"images", help='The base dir to save image, default is images')
 	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
 	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
-	parse.add_argument('--domain', dest='domain', type=str, nargs='?', const=u"weebang", default=u"mybluecat", help='The secondary domain of target lofter page, default is mybluecat')
+	parse.add_argument('--domain', dest='domain', type=str, nargs='?', const=DOMAIN, default=DOMAIN, help='The secondary domain of target lofter page, default is ' + DOMAIN)
 	parse.add_argument('--groupByID', dest='groupByID', action='store_true', default=False, help='Group image with its group ID, default is false')
 	parse.add_argument('-t', '--timeout', dest='timeout', type=int, nargs='?', const=60, default=60, help='The timeout of a http connection, default is 60')
 	args = parse.parse_args()
