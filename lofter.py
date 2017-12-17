@@ -18,20 +18,23 @@ ONLY_LATEST_IMAGES = False
 DOMAIN = u"weebang"
 IS_GROUP_BY_ID = False
 TIME_OUT = 60
+UNTIL_GROUP_ID = ''
 
 def initArgs():
-	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_ID,TIME_OUT
+	global START_PAGE,END_PAGE,BASE_DIR,MAX_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,DOMAIN,IS_GROUP_BY_ID,TIME_OUT,UNTIL_GROUP_ID
 	parse = argparse.ArgumentParser()
 	parse.add_argument('-s', '--startpage', dest='startpage', type=int, nargs='?', const=1, default=1, help='The first page to scrapy, default is 0.')
 	parse.add_argument('-e', '--endpage', dest='endpage', type=int, nargs='?', const=65589, default=65589, help='The last page to scrapy, default is 65589.')
 	parse.add_argument('-d', '--dir', dest='basedir', type=str, nargs='?', const=u"images", default=u"images", help='The base dir to save image, default is images')
 	parse.add_argument('-m', '--max', dest='maxtimes', type=int, nargs='?', const=3, default=3, help='The max times to try next page when the current page get fail, default is 3')
 	parse.add_argument('-n', '--new', dest='getnew', action='store_true', default=False, help='Set only to get the latest images.')
+	parse.add_argument('--until', dest='until', type=str, nargs='?', const=UNTIL_GROUP_ID, default=UNTIL_GROUP_ID, help="Scrapy until group id found")
 	parse.add_argument('--domain', dest='domain', type=str, nargs='?', const=DOMAIN, default=DOMAIN, help='The secondary domain of target lofter page, default is ' + DOMAIN)
 	parse.add_argument('--groupByID', dest='groupByID', action='store_true', default=False, help='Group image with its group ID, default is false')
 	parse.add_argument('-t', '--timeout', dest='timeout', type=int, nargs='?', const=60, default=60, help='The timeout of a http connection, default is 60')
 	args = parse.parse_args()
 	ONLY_LATEST_IMAGES = args.getnew
+	UNTIL_GROUP_ID = args.until
 	if ONLY_LATEST_IMAGES:
 		START_PAGE = 1
 	else:
@@ -73,7 +76,7 @@ def isImageTag(tag):
 	return tag.has_attr('bigimgsrc') 
 
 def scrapyImages(page=1):
-	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_ID,TIME_OUT
+	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_ID,TIME_OUT,UNTIL_GROUP_ID
 	KEEP_WORKING = True
 	thread.start_new(inputHandle,())
 	time.sleep(1)
@@ -162,6 +165,11 @@ def scrapyImages(page=1):
 				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
 				print "Save image success:" + imageSavePath
 		print u"Parse %s page  %s image groups. " % (page,imageGroupCount)
+		if UNTIL_GROUP_ID != '':
+			untilGroupUrl = r"http://%s.lofter.com/post/%s" % (DOMAIN, UNTIL_GROUP_ID)
+			if untilGroupUrl in groupUrlSet:
+				print u"Found all group"
+				KEEP_WORKING = False
 		if imageGroupCount > 0 and KEEP_WORKING:
 			page = int(page) + 1
 			if int(page) > END_PAGE:
