@@ -78,9 +78,14 @@ def isImageTag(tag):
 def scrapyImages(page=1):
 	global ALL_DOWNLOADS,START_PAGE,END_PAGE,BASE_DIR,DOMAIN_DIR_PATH,KEEP_WORKING,MAX_PAGE_ERROR_TIMES,CURRENT_PAGE_ERROR_TIMES,ONLY_LATEST_IMAGES,IS_GROUP_BY_ID,TIME_OUT,UNTIL_GROUP_ID
 	KEEP_WORKING = True
+	foundExistImage = False
 	thread.start_new(inputHandle,())
 	time.sleep(1)
 	while KEEP_WORKING:
+		if ONLY_LATEST_IMAGES and foundExistImage:
+			print "Have got all latest images"
+			KEEP_WORKING = False
+			break
 		pageUrl = r"http://%s.lofter.com/?page=%s" % (DOMAIN, page)
 		print pageUrl
 		try:
@@ -150,17 +155,15 @@ def scrapyImages(page=1):
 					print u"Get image name fail, set a md5 name"
 					imageSavePath = targetDirPath + "/" + hashlib.md5(imageUrl).hexdigest()
 				if os.path.exists(imageSavePath):
-					if ONLY_LATEST_IMAGES:
-						print "Have got all latest images"
-						KEEP_WORKING = False
-						break
+					foundExistImage = True
 					print "Image is existed:" + imageSavePath
 					continue
 				try:
 					with open(imageSavePath, 'wb') as datas:
 						datas.write(imageContent)
-				except:
+				except Exception, e:
 					print "Save image fail:" + imageSavePath
+					print traceback.format_exc()
 					continue
 				ALL_DOWNLOADS = ALL_DOWNLOADS + 1
 				print "Save image success:" + imageSavePath
@@ -191,6 +194,7 @@ try:
 	scrapyImages(START_PAGE)
 except KeyboardInterrupt:
 	print "Unnatural exit.\nIf you want to cancel the progress,please type ENTER key."
-except:
+except Exception, e:
 	print "Unkown exception."
+	print traceback.format_exc()
 	
